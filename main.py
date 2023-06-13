@@ -13,6 +13,22 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5 import QtGui
+from TrackNet import TrackNet
+from argparse import Namespace
+import torch
+from utils.inference import inference
+
+
+opt = Namespace(
+    **{
+        "grayscale": False,
+        "sequence_length": 1,
+        "dropout": 0,
+        "one_output_frame": False,
+    }
+)
+
+model = TrackNet(opt)
 
 
 class VideoPlayerWindow(QMainWindow):
@@ -73,7 +89,9 @@ class VideoPlayerWindow(QMainWindow):
 
         if ret:
             # Convert the frame to RGB format
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            detect_frame = inference(model, frame)
+            rgb_frame = cv2.cvtColor(detect_frame, cv2.COLOR_BGR2RGB)
+            # rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             # Create a QImage from the RGB frame
             image = QImage(
@@ -103,6 +121,12 @@ class VideoPlayerWindow(QMainWindow):
 
 
 if __name__ == "__main__":
+    model.load_state_dict(
+        torch.load("./utils/best-custom-dataset.pth", map_location=torch.device("cpu"))
+    )
+    model.to("cpu")
+    model.eval()
+
     app = QApplication(sys.argv)
     video_player_window = VideoPlayerWindow()
     video_player_window.show()
